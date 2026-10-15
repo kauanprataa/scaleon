@@ -30,3 +30,5 @@ self.addEventListener('notificationclick', function(e){
     })
   );
 });
+
+// deploy-marker: v-auto-1303
