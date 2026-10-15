@@ -205,7 +205,7 @@
     .content{padding:14px;gap:12px}
     .topnav{gap:10px;padding:10px 14px}
     .topnav .brand .logo-img{height:22px;max-height:22px}
-    .tabs .tab:first-child{display:none}
+    .tabs{display:none}
     .filterbar{flex-direction:column;align-items:stretch;padding:10px 14px;gap:8px}
     .periods{width:100%;justify-content:space-between}
     .periods .period{flex:1 1 auto;text-align:center;white-space:nowrap;min-width:0}
@@ -277,10 +277,9 @@
   <a href="#resumo">⌂ Resumo</a>
   <a href="#desempenho">↗ Desempenho</a>
   <a href="#vendas">◎ Vendas</a>
-  <a href="#risco">⊘ Chargebacks</a>
+  <a href="#chargebacks">⊘ Chargebacks</a>
   <a href="#funil">▽ Funil</a>
-  <a href="#criativos">⌸ Criativos</a>
-  <a href="#tiktok">◈ TikTok Ads</a>
+  <a href="#pixel">◈ Pixel TikTok</a>
 </nav>
 
 <!-- APP -->
@@ -846,7 +845,7 @@
   function clean(txt){ return txt.replace(/^[^A-Za-zÀ-ú]+/,"").trim(); }
   qsa(".tabs .tab").forEach(function(t){ t.addEventListener("click",function(){ var v=mapView(t.textContent); setView(v, clean(t.textContent)); if(v==="pixel"&&window.__loadPixels)window.__loadPixels(); }); });
   setView("resumo");
-  qsa(".drawer a[href^='#']").forEach(function(a){ a.addEventListener("click",function(){ var tabs=qsa(".tabs .tab"); var target=clean(a.textContent).toLowerCase(); tabs.forEach(function(t){ if(clean(t.textContent).toLowerCase()===target){ t.click(); t.scrollIntoView({inline:"center",block:"nearest"}); } }); }); });
+  qsa(".drawer a[href^='#']").forEach(function(a){ a.addEventListener("click",function(e){ e.preventDefault(); var v=mapView(a.textContent); var label=clean(a.textContent); setView(v,label); if(v==="pixel"&&window.__loadPixels)window.__loadPixels(); qsa(".tabs .tab").forEach(function(t){ t.classList.toggle("active", mapView(t.textContent)===v); }); }); });
 })();
 </script>
 <script>
