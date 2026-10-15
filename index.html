@@ -280,6 +280,7 @@
   <a href="#chargebacks">⊘ Chargebacks</a>
   <a href="#funil">▽ Funil</a>
   <a href="#pixel">◈ Pixel TikTok</a>
+  <a href="#conectar">⚡ Conectar TikTok</a>
 </nav>
 
 <!-- APP -->
@@ -299,6 +300,7 @@
       <button class="tab">⟳ Assinaturas</button>
       <button class="tab">⌸ Funis</button>
       <button class="tab">◈ Pixel TikTok</button>
+      <button class="tab">⚡ Conectar TikTok</button>
     </div>
     <div class="op-chip" id="op-chip"><span id="op-flag" style="font-size:16px">🇫🇷</span><div><div class="t" id="op-name">França</div><div class="s" id="op-sub">Operação em euro</div></div></div>
   </div>
@@ -517,6 +519,26 @@
             <thead><tr><th>Produto</th><th class="right">Valor</th><th>Clique</th><th class="right">Status</th></tr></thead>
             <tbody id="px-hist"><tr><td colspan="4"><div class="empty">Nenhum evento enviado ainda.</div></td></tr></tbody>
           </table></div>
+        </div>
+      </div>
+
+      <div id="conectar-area">
+        <div class="panel">
+          <div class="panel-head"><div><div class="eyebrow">Integração</div><h3>Conectar TikTok Ads</h3></div><span class="badge neu" id="tk-conn">Não conectado</span></div>
+          <p style="font-size:13px;color:var(--muted);line-height:1.5;margin:4px 0 14px">Cole o <b>token da API de anúncios</b> do TikTok. Depois escolha as contas que o Scaleon deve somar — o gasto entra sozinho no painel a cada 2 horas, já convertido de dólar para euro.</p>
+          <label style="display:block;font-size:11px;color:var(--faint);margin-bottom:4px">Access Token (API de anúncios)</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input id="tk-token" type="password" placeholder="cole o token aqui" style="flex:1 1 260px;min-width:0;padding:10px 12px;background:var(--panel-2,#15151d);border:1px solid var(--line);border-radius:9px;color:var(--fg);font-size:14px">
+            <button class="btn-primary" id="tk-save-token" style="padding:10px 18px">Salvar token</button>
+          </div>
+          <span class="msg" id="tk-msg" style="display:block;margin-top:8px"></span>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div><div class="eyebrow">Contas de anúncio</div><h3>Escolha o que somar</h3></div><div style="display:flex;align-items:center;gap:10px"><button class="btn-sm" id="tk-sync">↻ Sincronizar agora</button><span class="badge neu" id="tk-total">Hoje: €0,00</span></div></div>
+          <div style="display:flex;gap:10px;margin:2px 0 12px"><button class="btn-sm" id="tk-all">Marcar todas</button><button class="btn-sm" id="tk-none">Desmarcar</button></div>
+          <div id="tk-accounts" style="display:flex;flex-direction:column;gap:2px"></div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px"><button class="btn-primary" id="tk-save-sel" style="padding:11px 20px">Salvar seleção</button><span class="msg" id="tk-sel-msg"></span></div>
         </div>
       </div>
   </div>
@@ -805,6 +827,7 @@
   var kids=qsa(":scope > *",content).filter(function(el){return !el.classList.contains("demo-banner");});
   function viewsOf(el){
     if(el.id==="pixel-area") return ["pixel"];
+    if(el.id==="conectar-area") return ["conectar"];
     if(el.id==="resumo"||el.querySelector("#resumo")) return ["resumo"];
     if(el.classList.contains("strip")) return ["resumo"];
     if(el.classList.contains("metrics")) return ["resumo"];
@@ -821,7 +844,7 @@
   var ph=document.createElement("div"); ph.className="panel"; ph.style.display="none";
   ph.innerHTML='<div class="panel-head"><div><div class="eyebrow">Em breve</div><h3 id="ph-title">Seção</h3></div></div><div class="empty" id="ph-body">Esta seção ainda não está conectada a dados.</div>';
   content.appendChild(ph);
-  var dataViews={resumo:1,desempenho:1,vendas:1,chargebacks:1,funil:1,pixel:1};
+  var dataViews={resumo:1,desempenho:1,vendas:1,chargebacks:1,funil:1,pixel:1,conectar:1};
   function setView(v,label){
     var known=dataViews[v];
     kids.forEach(function(el){ var vs=(el.getAttribute("data-views")||"").split(","); el.style.display=(known&&vs.indexOf(v)>=0)?"":"none"; });
@@ -834,6 +857,7 @@
     if(txt.indexOf("desempenho")>=0)return"desempenho";
     if(txt.indexOf("vendas")>=0)return"vendas";
     if(txt.indexOf("chargeback")>=0)return"chargebacks";
+    if(txt.indexOf("conectar")>=0)return"conectar";
     if(txt.indexOf("pixel")>=0)return"pixel";
     if(txt.indexOf("funil")>=0)return"funil";
     if(txt.indexOf("a/b")>=0)return"ab";
@@ -843,9 +867,9 @@
     if(txt.indexOf("funis")>=0)return"funis";
     return"resumo"; }
   function clean(txt){ return txt.replace(/^[^A-Za-zÀ-ú]+/,"").trim(); }
-  qsa(".tabs .tab").forEach(function(t){ t.addEventListener("click",function(){ var v=mapView(t.textContent); setView(v, clean(t.textContent)); if(v==="pixel"&&window.__loadPixels)window.__loadPixels(); }); });
+  qsa(".tabs .tab").forEach(function(t){ t.addEventListener("click",function(){ var v=mapView(t.textContent); setView(v, clean(t.textContent)); if(v==="pixel"&&window.__loadPixels)window.__loadPixels(); if(v==="conectar"&&window.__loadTk)window.__loadTk(); }); });
   setView("resumo");
-  qsa(".drawer a[href^='#']").forEach(function(a){ a.addEventListener("click",function(e){ e.preventDefault(); var v=mapView(a.textContent); var label=clean(a.textContent); setView(v,label); if(v==="pixel"&&window.__loadPixels)window.__loadPixels(); qsa(".tabs .tab").forEach(function(t){ t.classList.toggle("active", mapView(t.textContent)===v); }); }); });
+  qsa(".drawer a[href^='#']").forEach(function(a){ a.addEventListener("click",function(e){ e.preventDefault(); var v=mapView(a.textContent); var label=clean(a.textContent); setView(v,label); if(v==="pixel"&&window.__loadPixels)window.__loadPixels(); if(v==="conectar"&&window.__loadTk)window.__loadTk(); qsa(".tabs .tab").forEach(function(t){ t.classList.toggle("active", mapView(t.textContent)===v); }); }); });
 })();
 </script>
 <script>
@@ -1066,6 +1090,95 @@
     if("serviceWorker" in navigator&&"PushManager" in window){navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription();}).then(function(s){if(s)setBtn("✓ Notificações ativas",true);}).catch(function(){});}
   }
   if(document.readyState!=="loading")wire();else document.addEventListener("DOMContentLoaded",wire);
+})();
+</script>
+<script>
+(function(){
+  var SB="https://uniyfdmhqzjovkkrjtjx.supabase.co",KEY="sb_publishable_Wsdd2Z8-8mh4gIja-lks2g_Q6stwtyf";
+  var FN_KEY="scaleon_vp_a93kd71";
+  var sb; try{sb=window.supabase.createClient(SB,KEY);}catch(e){return;}
+  var $=function(id){return document.getElementById(id);};
+  function eur(n){return "€"+(Number(n)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function msg(id,t,c){var m=$(id);if(!m)return;m.textContent=t||"";m.className="msg "+(c||"");}
+  function todayKey(){var d=new Date();return "tiktok_auto_"+d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");}
+
+  async function loadTk(){
+    if(!sb)return;
+    // token?
+    try{
+      var r=await sb.from("app_config").select("value").eq("key","tiktok_token").maybeSingle();
+      var has=r&&r.data&&r.data.value;
+      if($("tk-conn")){$("tk-conn").textContent=has?"Conectado":"Não conectado";$("tk-conn").className="badge "+(has?"pos":"neu");}
+      if(has&&$("tk-token"))$("tk-token").placeholder="token salvo ✓ (cole de novo só se quiser trocar)";
+    }catch(e){}
+    // contas
+    try{
+      var a=await sb.from("tiktok_accounts").select("*").order("name",{ascending:true});
+      var box=$("tk-accounts"); if(box){
+        var rows=(a.data||[]);
+        if(!rows.length){box.innerHTML='<div class="empty">Nenhuma conta cadastrada.</div>';}
+        else box.innerHTML=rows.map(function(c){
+          var sp=(c.last_spend!=null)?("US$"+Number(c.last_spend).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})):"—";
+          return '<label style="display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid var(--line);cursor:pointer">'
+            +'<input type="checkbox" class="tk-chk" data-id="'+esc(c.advertiser_id)+'" '+(c.selected?"checked":"")+' style="width:17px;height:17px;accent-color:var(--accent)">'
+            +'<span style="flex:1;font-size:13.5px">'+esc(c.name||c.advertiser_id)+'</span>'
+            +'<span style="font-size:12px;color:var(--faint)">'+sp+'</span></label>';
+        }).join("");
+      }
+    }catch(e){}
+    // total de hoje
+    try{
+      var t=await sb.from("ad_spend").select("amount").eq("auto_key",todayKey()).maybeSingle();
+      if($("tk-total"))$("tk-total").textContent="Hoje: "+eur(t&&t.data?t.data.amount:0);
+    }catch(e){}
+  }
+  window.__loadTk=loadTk;
+
+  document.addEventListener("click",function(e){
+    var b=e.target.closest("#tk-save-token,#tk-save-sel,#tk-sync,#tk-all,#tk-none");
+    if(!b)return;
+    if(b.id==="tk-all"){document.querySelectorAll(".tk-chk").forEach(function(c){c.checked=true;});return;}
+    if(b.id==="tk-none"){document.querySelectorAll(".tk-chk").forEach(function(c){c.checked=false;});return;}
+    if(b.id==="tk-save-token"){
+      (async function(){
+        var tok=($("tk-token").value||"").trim();
+        if(!tok){msg("tk-msg","Cole o token primeiro.","err");return;}
+        b.disabled=true;
+        try{
+          var r=await sb.from("app_config").upsert({key:"tiktok_token",value:tok,updated_at:new Date().toISOString()},{onConflict:"key"});
+          if(r.error)msg("tk-msg","Erro ao salvar: "+r.error.message,"err");
+          else{msg("tk-msg","Token salvo. Agora escolha as contas e clique em Sincronizar agora.","ok");$("tk-token").value="";loadTk();}
+        }catch(e){msg("tk-msg","Não foi possível salvar agora.","err");}
+        b.disabled=false;
+      })();
+    }
+    if(b.id==="tk-save-sel"){
+      (async function(){
+        b.disabled=true;var old=b.textContent;b.textContent="Salvando…";
+        try{
+          var chks=[].slice.call(document.querySelectorAll(".tk-chk"));
+          for(var i=0;i<chks.length;i++){ await sb.from("tiktok_accounts").update({selected:chks[i].checked}).eq("advertiser_id",chks[i].getAttribute("data-id")); }
+          msg("tk-sel-msg","Seleção salva ("+chks.filter(function(c){return c.checked;}).length+" conta(s)).","ok");
+        }catch(e){msg("tk-sel-msg","Não foi possível salvar.","err");}
+        b.disabled=false;b.textContent=old;
+      })();
+    }
+    if(b.id==="tk-sync"){
+      (async function(){
+        b.disabled=true;var old=b.textContent;b.textContent="Sincronizando…";
+        try{
+          var r=await fetch(SB+"/functions/v1/tiktok-sync?key="+FN_KEY,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+          var j=await r.json().catch(function(){return{};});
+          if(j&&j.ok){msg("tk-sel-msg","Sincronizado: "+eur(j.total_eur)+" (de US$"+(j.total_usd||0)+", "+ (j.contas_ok||0) +" conta(s)).","ok"); if(window.__reload)window.__reload();}
+          else msg("tk-sel-msg","Retorno: "+((j&&j.error)||"verifique o token"),"err");
+        }catch(e){msg("tk-sel-msg","Não foi possível sincronizar agora.","err");}
+        b.disabled=false;b.textContent=old; loadTk();
+      })();
+    }
+  });
+
+  if(sb)sb.auth.getSession().then(function(r){if(r.data&&r.data.session)loadTk();});
 })();
 </script>
 
