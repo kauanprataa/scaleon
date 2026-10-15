@@ -271,7 +271,7 @@
 <nav class="drawer" id="drawer">
   <div class="dh"><div class="wordmark" style="font-size:15px">Menu Scaleon</div><button class="close" id="drawer-close">✕</button></div>
   <div class="drawer-sec">Operação</div>
-  <a class="active"><span>🇫🇷</span> França (euro)</a>
+  <div id="op-list"></div>
   <div class="drawer-sec">Navegação</div>
   <a href="#resumo">⌂ Resumo</a>
   <a href="#desempenho">↗ Desempenho</a>
@@ -300,10 +300,7 @@
       <button class="tab">⌸ Funis</button>
       <button class="tab">◈ Pixel TikTok</button>
     </div>
-    <div class="op-wrap" style="position:relative;flex:0 0 auto">
-      <button class="op-chip" id="op-chip" type="button" style="cursor:pointer;border:1px solid var(--line)"><span id="op-flag" style="font-size:16px">🇫🇷</span><div style="text-align:left"><div class="t" id="op-name">França</div><div class="s" id="op-sub">Operação em euro</div></div><span style="color:var(--faint);font-size:10px;margin-left:2px">▾</span></button>
-      <div class="op-menu" id="op-menu" hidden style="position:absolute;top:calc(100% + 6px);left:0;min-width:230px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px;z-index:60;box-shadow:0 12px 34px rgba(0,0,0,.45)"></div>
-    </div>
+    <div class="op-chip" id="op-chip"><span id="op-flag" style="font-size:16px">🇫🇷</span><div><div class="t" id="op-name">França</div><div class="s" id="op-sub">Operação em euro</div></div></div>
   </div>
 
   <div class="filterbar">
@@ -589,7 +586,7 @@
   $("btn-refresh").addEventListener("click",load);
   window.__reload=load;
 
-  // ---- Operação / país ----
+  // ---- Operação / país (troca pelo menu lateral; no topo só mostra) ----
   function applyOp(code,reload){
     if(!OPS[code])code="FR"; state.op=code; CURSYM=OPS[code].sym; window.__op=code;
     try{localStorage.setItem("scaleon_op",code);}catch(e){}
@@ -598,23 +595,22 @@
     if($("op-name"))$("op-name").textContent=o.name;
     if($("op-sub"))$("op-sub").textContent=o.sub;
     var fc=$("foot-cur"); if(fc)fc.textContent=o.sym;
+    buildOpList();
     if(reload)load();
   }
-  function buildOpMenu(){
-    var m=$("op-menu"); if(!m)return; m.innerHTML="";
+  function buildOpList(){
+    var m=$("op-list"); if(!m)return; m.innerHTML="";
     OPORDER.forEach(function(code){
       var o=OPS[code];
-      var b=document.createElement("button"); b.type="button";
-      b.style.cssText="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:"+(code===state.op?"var(--card)":"transparent")+";border:0;border-radius:9px;padding:9px 10px;color:var(--fg);cursor:pointer";
-      b.innerHTML="<span style='font-size:18px'>"+o.flag+"</span><span><div style='font-size:13px;font-weight:600'>"+o.name+"</div><div style='font-size:11px;color:var(--faint)'>"+o.sub+"</div></span>";
-      b.addEventListener("click",function(){applyOp(code,true);m.hidden=true;});
-      m.appendChild(b);
+      var a=document.createElement("a");
+      if(code===state.op)a.className="active";
+      a.style.cursor="pointer";
+      a.innerHTML="<span>"+o.flag+"</span> "+o.name+"<span style='margin-left:auto;color:var(--faint);font-size:11px'>"+o.sym+"</span>";
+      a.addEventListener("click",function(){applyOp(code,true);closeDrawer();});
+      m.appendChild(a);
     });
   }
-  if($("op-chip")){
-    $("op-chip").addEventListener("click",function(e){e.stopPropagation();var m=$("op-menu");buildOpMenu();m.hidden=!m.hidden;});
-    document.addEventListener("click",function(){var m=$("op-menu");if(m&&!m.hidden)m.hidden=true;});
-  }
+  buildOpList();
   applyOp(state.op,false);
   $("btn-demo").addEventListener("click",function(){state.demo=!state.demo;this.textContent=state.demo?"Dados reais":"Dados demo";$("demo-banner").classList.toggle("on",state.demo);load();});
 
