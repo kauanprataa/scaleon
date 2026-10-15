@@ -271,7 +271,7 @@
 <nav class="drawer" id="drawer">
   <div class="dh"><div class="wordmark" style="font-size:15px">Menu Scaleon</div><button class="close" id="drawer-close">✕</button></div>
   <div class="drawer-sec">Operação</div>
-  <a class="active"><span>🇺🇸</span> Operação principal</a>
+  <a class="active"><span>🇫🇷</span> França (euro)</a>
   <div class="drawer-sec">Navegação</div>
   <a href="#resumo">⌂ Resumo</a>
   <a href="#desempenho">↗ Desempenho</a>
@@ -300,7 +300,10 @@
       <button class="tab">⌸ Funis</button>
       <button class="tab">◈ Pixel TikTok</button>
     </div>
-    <div class="op-chip"><span class="dot"></span><div><div class="t">Operação</div><div class="s">VendePay + TikTok Ads</div></div></div>
+    <div class="op-wrap" style="position:relative;flex:0 0 auto">
+      <button class="op-chip" id="op-chip" type="button" style="cursor:pointer;border:1px solid var(--line)"><span id="op-flag" style="font-size:16px">🇫🇷</span><div style="text-align:left"><div class="t" id="op-name">França</div><div class="s" id="op-sub">Operação em euro</div></div><span style="color:var(--faint);font-size:10px;margin-left:2px">▾</span></button>
+      <div class="op-menu" id="op-menu" hidden style="position:absolute;top:calc(100% + 6px);left:0;min-width:230px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px;z-index:60;box-shadow:0 12px 34px rgba(0,0,0,.45)"></div>
+    </div>
   </div>
 
   <div class="filterbar">
@@ -521,7 +524,7 @@
       </div>
   </div>
 
-  <footer><span>Scaleon</span><span>Valores em euro (€) · horário de Brasília · atualização manual</span></footer>
+  <footer><span>Scaleon</span><span>Valores em <span id="foot-cur">€</span> · horário de Brasília · atualização manual</span></footer>
 </div>
 
 <script>
@@ -532,9 +535,13 @@
   var CB_FEE=27; var sb=null;
   try{ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
   var $=function(id){return document.getElementById(id);};
-  var state={period:"today",demo:false,user:null};
+  var OPS={FR:{flag:"🇫🇷",name:"França",sub:"Operação em euro",sym:"€"},US:{flag:"🇺🇸",name:"EUA",sub:"Operação em dólar",sym:"$"}};
+  var OPORDER=["FR","US"];
+  var state={period:"today",demo:false,user:null,op:(function(){try{return localStorage.getItem("scaleon_op")||"FR";}catch(e){return "FR";}})()};
+  if(!OPS[state.op])state.op="FR";
+  var CURSYM=OPS[state.op].sym;
 
-  function eur(n){return "€"+(Number(n)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function eur(n){return CURSYM+(Number(n)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
   function pct(n){return (Number(n)||0).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";}
   function timeHM(d){return new Date(d).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});}
   function dShort(d){return new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});}
@@ -581,6 +588,34 @@
   $("periods").addEventListener("click",function(e){var b=e.target.closest(".period");if(!b)return;state.period=b.getAttribute("data-p");document.querySelectorAll(".period").forEach(function(x){x.classList.remove("active");});b.classList.add("active");load();});
   $("btn-refresh").addEventListener("click",load);
   window.__reload=load;
+
+  // ---- Operação / país ----
+  function applyOp(code,reload){
+    if(!OPS[code])code="FR"; state.op=code; CURSYM=OPS[code].sym; window.__op=code;
+    try{localStorage.setItem("scaleon_op",code);}catch(e){}
+    var o=OPS[code];
+    if($("op-flag"))$("op-flag").textContent=o.flag;
+    if($("op-name"))$("op-name").textContent=o.name;
+    if($("op-sub"))$("op-sub").textContent=o.sub;
+    var fc=$("foot-cur"); if(fc)fc.textContent=o.sym;
+    if(reload)load();
+  }
+  function buildOpMenu(){
+    var m=$("op-menu"); if(!m)return; m.innerHTML="";
+    OPORDER.forEach(function(code){
+      var o=OPS[code];
+      var b=document.createElement("button"); b.type="button";
+      b.style.cssText="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:"+(code===state.op?"var(--card)":"transparent")+";border:0;border-radius:9px;padding:9px 10px;color:var(--fg);cursor:pointer";
+      b.innerHTML="<span style='font-size:18px'>"+o.flag+"</span><span><div style='font-size:13px;font-weight:600'>"+o.name+"</div><div style='font-size:11px;color:var(--faint)'>"+o.sub+"</div></span>";
+      b.addEventListener("click",function(){applyOp(code,true);m.hidden=true;});
+      m.appendChild(b);
+    });
+  }
+  if($("op-chip")){
+    $("op-chip").addEventListener("click",function(e){e.stopPropagation();var m=$("op-menu");buildOpMenu();m.hidden=!m.hidden;});
+    document.addEventListener("click",function(){var m=$("op-menu");if(m&&!m.hidden)m.hidden=true;});
+  }
+  applyOp(state.op,false);
   $("btn-demo").addEventListener("click",function(){state.demo=!state.demo;this.textContent=state.demo?"Dados reais":"Dados demo";$("demo-banner").classList.toggle("on",state.demo);load();});
 
   function load(){
@@ -597,7 +632,8 @@
       sb.from("funnel_stages").select("*").order("position",{ascending:true}),
       sb.from("pixel_sends").select("*",{count:"exact",head:true}).eq("status","sent").gte("created_at",s).lte("created_at",e)
     ]).then(function(res){
-      render(buildData((res[0].data||[]),(res[1].data||[]),(res[2].data||[]),(res[3].data||[]),(res[4].data||[]),(res[5].data||[])));
+      var oc=function(arr){return (arr||[]).filter(function(r){return (r.country||"FR")===state.op;});};
+      render(buildData(oc(res[0].data),oc(res[1].data),oc(res[2].data),oc(res[3].data),oc(res[4].data),(res[5].data||[])));
       var pxSent=(res[6]&&res[6].count)||0;
       var mp=$("m-pix"); if(mp){mp.textContent=pxSent; var sub=mp.nextElementSibling; if(sub)sub.textContent=pxSent>0?"eventos enviados ao TikTok":"nenhum evento enviado ainda";}
     }).catch(function(){render(emptyData());});
@@ -959,7 +995,7 @@
     try{
       var ses=await sb.auth.getSession();
       if(!ses.data||!ses.data.session){spMsg("Faça login para salvar o gasto.","err");spBtn.disabled=false;spBtn.textContent=old;return;}
-      var r=await sb.from("ad_spend").insert({platform:"tiktok",campaign:camp,amount:amt,spent_at:when.toISOString()});
+      var r=await sb.from("ad_spend").insert({platform:"tiktok",campaign:camp,amount:amt,spent_at:when.toISOString(),country:(window.__op||"FR")});
       if(r.error){spMsg("Erro ao salvar: "+r.error.message,"err");}
       else{spMsg("Gasto de "+eur(amt)+" adicionado.","ok");$("sp-amount").value="";$("sp-campaign").value="";if(window.__reload)window.__reload();}
     }catch(e){spMsg("Não foi possível salvar agora.","err");}
@@ -1039,4 +1075,3 @@
 
 </body>
 </html>
-
