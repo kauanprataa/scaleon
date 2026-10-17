@@ -928,7 +928,7 @@
     if(pickMode){var sel=[];var cbs=document.querySelectorAll("#px-prodlist input[type=checkbox]:checked");for(var i=0;i<cbs.length;i++){sel.push(cbs[i].getAttribute("data-prod"));}products=sel.join(", ")||null;}
     if(!name||!pid||!tok){setMsg("Preencha nome, ID do pixel e token.","err");return;}
     setMsg("Salvando…","");
-    var r=await sb.from("tiktok_pixels").insert({name:name,pixel_id:pid,access_token:tok,event_name:ev,test_code:tc||null,products:products,active:true});
+    var r=await sb.from("tiktok_pixels").insert({name:name,pixel_id:pid,access_token:tok,event_name:ev,test_code:tc||null,products:products,active:true,country:(window.__op||"FR")});
     if(r.error){setMsg("Erro ao salvar: "+r.error.message,"err");return;}
     $("px-name").value="";$("px-id").value="";$("px-token").value="";if($("px-test"))$("px-test").value="";setMsg("Pixel adicionado e ativado.","ok");loadPixels();
   });
