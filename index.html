@@ -1040,25 +1040,77 @@
   var $=function(id){return document.getElementById(id);};
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
   var editBtn=$("fn-edit"), box=$("fn-editor");
+  var FLAGS={FR:"🇫🇷 França",US:"🇺🇸 EUA",BR:"🇧🇷 Brasil"};
+  var COLORS=["#22c55e","#38bdf8","#a78bfa","#f59e0b","#f472b6","#34d399","#60a5fa","#fbbf24","#fb7185","#2dd4bf","#c084fc"];
+  var S={stages:[],removed:[],products:[],open:-1};
   async function renderEditor(){
     var op=window.__op||"FR";
     var r=await sb.from("funnel_stages").select("*").eq("country",op).order("position",{ascending:true});
-    var st=(r.data||[]);
-    var ps=await sb.from("sales").select("product").eq("country",op).not("product","is",null).limit(300);
-    var set={};(ps.data||[]).forEach(function(x){if(x.product)set[x.product]=1;});
-    var opts=Object.keys(set).map(function(n){return '<option value="'+esc(n)+'">';}).join("");
-    var FLAGS={FR:"🇫🇷 França",US:"🇺🇸 EUA",BR:"🇧🇷 Brasil"};
-    box.innerHTML='<div class="sub-hint" style="margin-bottom:8px">Editando o funil de <b>'+(FLAGS[op]||op)+'</b> — diga qual produto é cada etapa. Vazio = etapa sem produto.</div><datalist id="fn-prod-list">'+opts+'</datalist>'+st.map(function(s){
-      return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="width:110px;font-size:12px;font-weight:700;color:'+(s.color||"var(--fg)")+'">'+esc(s.label)+'</span><input class="fn-inp" data-id="'+s.id+'" list="fn-prod-list" value="'+esc(s.product||"")+'" placeholder="produto desta etapa" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:var(--fg);font-size:13px"></div>';
-    }).join("")+'<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><button class="btn-primary" id="fn-save" style="padding:10px 16px">Salvar funil</button><span class="msg" id="fn-msg"></span></div>';
+    S.stages=(r.data||[]).map(function(s){return {id:s.id,label:s.label,product:s.product||"",color:s.color||null};});
+    S.removed=[];S.open=-1;
+    var ps=await sb.from("sales").select("product").eq("country",op).not("product","is",null).limit(500);
+    var set={};(ps.data||[]).forEach(function(x){if(x.product)set[String(x.product).trim()]=1;});
+    S.products=Object.keys(set).sort(function(a,b){return a.localeCompare(b);});
+    draw();
+  }
+  function syncLabels(){ var l=box.querySelectorAll(".fn-label"); for(var i=0;i<l.length;i++){ var idx=+l[i].getAttribute("data-i"); if(S.stages[idx])S.stages[idx].label=l[i].value; } }
+  function draw(){
+    var op=window.__op||"FR";
+    var h='<div class="sub-hint" style="margin-bottom:10px">Editando o funil de <b>'+(FLAGS[op]||op)+'</b> — toque no campo do produto para abrir a lista e escolher.</div><div id="fn-rows">';
+    S.stages.forEach(function(s,i){
+      var col=s.color||COLORS[i%COLORS.length];
+      h+='<div class="fn-row" style="border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px">';
+      h+='<div style="display:flex;gap:8px;align-items:center">';
+      h+='<span style="width:10px;height:10px;border-radius:50%;background:'+col+';flex:none"></span>';
+      h+='<input class="fn-label" data-i="'+i+'" value="'+esc(s.label||"")+'" placeholder="nome da etapa" style="width:110px;flex:none;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--fg);font-size:12px;font-weight:700">';
+      h+='<button class="fn-pick" data-i="'+i+'" style="flex:1;min-width:0;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:'+(s.product?"var(--fg)":"var(--muted)")+';font-size:13px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.product?esc(s.product):"Escolher produto…")+'</button>';
+      h+='<button class="fn-del" data-i="'+i+'" title="remover etapa" style="flex:none;background:transparent;border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--muted);cursor:pointer">✕</button>';
+      h+='</div>';
+      if(S.open===i){
+        h+='<div style="margin-top:8px;border-top:1px dashed var(--line);padding-top:8px;max-height:230px;overflow:auto">';
+        if(!S.products.length){ h+='<div class="sub-hint">Nenhum produto ainda — eles aparecem aqui conforme as vendas entram.</div>'; }
+        else {
+          S.products.forEach(function(p){ var on=(s.product===p);
+            h+='<label class="fn-opt" data-i="'+i+'" data-p="'+esc(p)+'" style="display:flex;gap:10px;align-items:center;padding:8px 6px;border-radius:8px;cursor:pointer;font-size:13px">';
+            h+='<span style="width:18px;height:18px;border-radius:5px;border:2px solid '+(on?col:"var(--line)")+';background:'+(on?col:"transparent")+';flex:none;display:flex;align-items:center;justify-content:center;color:#0b0b0f;font-size:12px;font-weight:900">'+(on?"✓":"")+'</span>';
+            h+='<span style="flex:1;min-width:0">'+esc(p)+'</span></label>';
+          });
+          var none=!s.product;
+          h+='<label class="fn-opt" data-i="'+i+'" data-p="" style="display:flex;gap:10px;align-items:center;padding:8px 6px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--muted)">';
+          h+='<span style="width:18px;height:18px;border-radius:5px;border:2px solid '+(none?col:"var(--line)")+';background:'+(none?col:"transparent")+';flex:none;display:flex;align-items:center;justify-content:center;color:#0b0b0f;font-size:12px;font-weight:900">'+(none?"✓":"")+'</span>';
+          h+='<span>— sem produto —</span></label>';
+        }
+        h+='</div>';
+      }
+      h+='</div>';
+    });
+    h+='</div><button class="btn-sm" id="fn-add" style="margin-bottom:10px">+ Adicionar etapa</button>';
+    h+='<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><button class="btn-primary" id="fn-save" style="padding:10px 16px">Salvar funil</button><span class="msg" id="fn-msg"></span></div>';
+    box.innerHTML=h;
+  }
+  function addStage(){ syncLabels(); var n=0; S.stages.forEach(function(s){ if(/upsell/i.test(s.label||""))n++; }); S.stages.push({label:"Upsell "+(n+1),product:"",color:COLORS[S.stages.length%COLORS.length]}); S.open=S.stages.length-1; draw(); }
+  async function save(){
+    syncLabels();
+    var op=window.__op||"FR",msg=$("fn-msg"); if(msg){msg.textContent="Salvando…";msg.className="msg";}
+    try{
+      for(var i=0;i<S.removed.length;i++){ await sb.from("funnel_stages").delete().eq("id",S.removed[i]); }
+      S.removed=[];
+      for(var j=0;j<S.stages.length;j++){ var s=S.stages[j]; var col=s.color||COLORS[j%COLORS.length];
+        var row={position:j+1,label:(s.label||("Etapa "+(j+1))),product:(s.product||null),color:col,country:op};
+        if(s.id){ await sb.from("funnel_stages").update(row).eq("id",s.id); }
+        else { var ins=await sb.from("funnel_stages").insert(row).select().single(); if(ins.data)s.id=ins.data.id; }
+      }
+      if(msg){msg.textContent="Funil salvo!";msg.className="msg ok";}
+      if(window.__reload)window.__reload();
+    }catch(e){ if(msg){msg.textContent="Não consegui salvar agora.";msg.className="msg err";} }
   }
   if(editBtn)editBtn.addEventListener("click",function(){ if(box.hidden){ box.hidden=false; renderEditor(); editBtn.textContent="Fechar"; } else { box.hidden=true; editBtn.textContent="Editar funil"; } });
-  if(box)box.addEventListener("click",async function(e){
-    var b=e.target.closest("#fn-save"); if(!b)return;
-    var inps=box.querySelectorAll(".fn-inp"); var msg=$("fn-msg"); if(msg){msg.textContent="Salvando…";msg.className="msg";}
-    for(var i=0;i<inps.length;i++){ var id=inps[i].getAttribute("data-id"); var val=(inps[i].value||"").trim(); await sb.from("funnel_stages").update({product:val||null}).eq("id",id); }
-    if(msg){msg.textContent="Funil salvo!";msg.className="msg ok";}
-    if(window.__reload)window.__reload();
+  if(box)box.addEventListener("click",function(e){
+    var pick=e.target.closest(".fn-pick"); if(pick){ var i=+pick.getAttribute("data-i"); syncLabels(); S.open=(S.open===i?-1:i); draw(); return; }
+    var opt=e.target.closest(".fn-opt"); if(opt){ var i2=+opt.getAttribute("data-i"); syncLabels(); if(S.stages[i2])S.stages[i2].product=opt.getAttribute("data-p")||""; S.open=-1; draw(); return; }
+    var del=e.target.closest(".fn-del"); if(del){ var i3=+del.getAttribute("data-i"); syncLabels(); var s=S.stages[i3]; if(s&&s.id)S.removed.push(s.id); S.stages.splice(i3,1); if(S.open===i3)S.open=-1; else if(S.open>i3)S.open--; draw(); return; }
+    if(e.target.closest("#fn-add")){ addStage(); return; }
+    if(e.target.closest("#fn-save")){ save(); return; }
   });
 })();
 </script>
