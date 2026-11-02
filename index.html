@@ -331,7 +331,7 @@
       <div class="lop">
         <div class="top"><div class="eyebrow">Lucro operacional</div><span class="badge neu" id="profit-pill">—</span></div>
         <div class="big" id="profit">€0,00</div>
-        <div class="desc">Receita líquida menos anúncios, reembolsos, chargebacks (com a multa de €27,00 cada) e despesas.</div>
+        <div class="desc" id="lop-desc">Receita líquida menos anúncios, reembolsos, chargebacks (com a multa de €27,00 cada) e despesas.</div>
         <div class="row">
           <div><div class="k">Margem</div><div class="v" id="margin">0,0%</div></div>
           <div><div class="k">ROI</div><div class="v" id="roi">—</div></div>
@@ -367,6 +367,7 @@
       <div class="metric"><div class="k">ROI</div><div class="v" id="roi2">—</div><div class="sub" id="roi2-sub">sem gasto de mídia no período</div></div>
       <div class="metric"><div class="k">Perdas totais</div><div class="v" id="losses" style="color:var(--neg)">€0,00</div><div class="sub" id="losses-sub">0 ocorrências</div></div>
       <div class="metric"><div class="k">Multa de chargeback</div><div class="v" id="cbfee">€0,00</div><div class="sub" id="cbfee-sub">0 × €27,00 por contestação</div></div>
+      <div class="metric" id="m-pend" style="display:none"><div class="k">Vendas pendentes</div><div class="v" id="pend-v">0</div><div class="sub" id="pend-sub">aguardando pagamento</div></div>
       <div class="metric"><div class="k">Lucro provisionado</div><div class="v" id="prov">—</div><div class="sub">nada pendente de maturar</div></div>
       <div class="metric"><div class="k">CPA por front</div><div class="v" id="cpa2">€0,00</div><div class="sub" id="cpa2-sub">0 fronts aprovados</div></div>
       <div class="metric"><div class="k">Taxa efetiva</div><div class="v" id="efrate">0,0%</div><div class="sub">taxas sobre faturamento</div></div>
@@ -617,6 +618,7 @@
     if($("op-name"))$("op-name").textContent=o.name;
     if($("op-sub"))$("op-sub").textContent=o.sub;
     var fc=$("foot-cur"); if(fc)fc.textContent=o.sym;
+    var ld=$("lop-desc"); if(ld)ld.textContent=(code==="BR")?"Receita líquida menos anúncios, reembolsos, chargebacks e despesas.":"Receita líquida menos anúncios, reembolsos, chargebacks (com a multa de €27,00 cada) e despesas.";
     buildOpList();
     if(reload)load();
   }
@@ -642,18 +644,22 @@
     if(!sb||!state.user){render(emptyData());return;}
     var s=r.start.toISOString(),e=r.end.toISOString();
     Promise.all([
-      sb.from("sales").select("*").gte("sold_at",s).lte("sold_at",e).order("sold_at",{ascending:false}),
+      sb.from("sales").select("*").eq("status","approved").gte("sold_at",s).lte("sold_at",e).order("sold_at",{ascending:false}),
       sb.from("refunds").select("*").gte("occurred_at",s).lte("occurred_at",e),
       sb.from("chargebacks").select("*").gte("occurred_at",s).lte("occurred_at",e),
       sb.from("ad_spend").select("*").gte("spent_at",s).lte("spent_at",e).order("spent_at",{ascending:false}),
       sb.from("expenses").select("*").gte("occurred_at",s).lte("occurred_at",e),
       sb.from("funnel_stages").select("*").order("position",{ascending:true}),
-      sb.from("pixel_sends").select("*",{count:"exact",head:true}).eq("status","sent").gte("created_at",s).lte("created_at",e)
+      sb.from("pixel_sends").select("*",{count:"exact",head:true}).eq("status","sent").gte("created_at",s).lte("created_at",e),
+      sb.from("sales").select("gross_amount,country").eq("status","pending").gte("sold_at",s).lte("sold_at",e)
     ]).then(function(res){
       var oc=function(arr){return (arr||[]).filter(function(r){return (r.country||"FR")===state.op;});};
       render(buildData(oc(res[0].data),oc(res[1].data),oc(res[2].data),oc(res[3].data),oc(res[4].data),(res[5].data||[])));
       var pxSent=(res[6]&&res[6].count)||0;
       var mp=$("m-pix"); if(mp){mp.textContent=pxSent; var sub=mp.nextElementSibling; if(sub)sub.textContent=pxSent>0?"eventos enviados ao TikTok":"nenhum evento enviado ainda";}
+      var pend=oc((res[7]&&res[7].data)||[]);
+      var mpd=$("m-pend");
+      if(mpd){ if(state.op==="BR"){ mpd.style.display=""; var pv=$("pend-v"),psub=$("pend-sub"); var psum=pend.reduce(function(a,r){return a+(Number(r.gross_amount)||0);},0); if(pv)pv.textContent=pend.length; if(psub)psub.textContent=eur(psum)+" aguardando pagamento"; } else { mpd.style.display="none"; } }
     }).catch(function(){render(emptyData());});
   }
   function sum(a,k){return a.reduce(function(x,o){return x+(Number(o[k])||0);},0);}
@@ -662,7 +668,7 @@
     var gross=sum(sales,"gross_amount"),fees=sum(sales,"fees");
     var net=sum(sales,"net_amount")||(gross-fees);
     var refundAmt=sum(refunds,"amount"),cbAmt=sum(cbacks,"amount");
-    var cbFee=cbacks.reduce(function(a,c){return a+(Number(c.fee)||CB_FEE);},0);
+    var cbFee=(state.op==="BR")?0:cbacks.reduce(function(a,c){return a+(Number(c.fee)||CB_FEE);},0);
     var adSpend=sum(spend,"amount"),expAmt=sum(expenses,"amount"),retido=sum(sales,"retained");
     var losses=refundAmt+cbAmt+cbFee, profit=net-adSpend-losses-expAmt;
     var ticket=sales.length?gross/sales.length:0;
@@ -732,7 +738,7 @@
     $("spend").textContent=eur(d.spend);
     $("roi2").textContent=d.roi==null?"—":pct(d.roi); $("roi2-sub").textContent=d.spend>0?"retorno sobre o gasto":"sem gasto de mídia no período";
     $("losses").textContent=eur(d.losses); $("losses-sub").textContent=(d.refundN+d.cbN)+" ocorrências · inclui "+eur(d.cbFee)+" de multa";
-    $("cbfee").textContent=eur(d.cbFee); $("cbfee-sub").textContent=d.cbN+" × €27,00 por contestação";
+    $("cbfee").textContent=eur(d.cbFee); $("cbfee-sub").textContent=(state.op==="BR")?"sem multa no Brasil":(d.cbN+" × €27,00 por contestação");
     $("cpa2").textContent=d.cpa==null?"€0,00":eur(d.cpa); $("cpa2-sub").textContent=d.txns+" fronts aprovados";
     $("efrate").textContent=pct(d.efRate);
     // acumulado
