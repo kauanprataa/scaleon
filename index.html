@@ -743,7 +743,7 @@
     $("roi2").textContent=d.roi==null?"—":pct(d.roi); $("roi2-sub").textContent=d.spend>0?"retorno sobre o gasto":"sem gasto de mídia no período";
     $("losses").textContent=eur(d.losses); $("losses-sub").textContent=(d.refundN+d.cbN)+" ocorrências · inclui "+eur(d.cbFee)+" de multa";
     $("cbfee").textContent=eur(d.cbFee); $("cbfee-sub").textContent=(state.op==="BR")?"sem multa no Brasil":(d.cbN+" × €27,00 por contestação");
-    $("cpa2").textContent=d.cpa==null?"€0,00":eur(d.cpa); $("cpa2-sub").textContent=d.txns+" fronts aprovados";
+    $("cpa2").textContent=d.cpa==null?eur(0):eur(d.cpa); $("cpa2-sub").textContent=d.txns+" fronts aprovados";
     $("efrate").textContent=pct(d.efRate);
     // acumulado
     var tr=d.accR[23]||0,tg=d.accG[23]||0;
