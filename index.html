@@ -554,8 +554,8 @@
   var CB_FEE=27; var sb=null;
   try{ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
   var $=function(id){return document.getElementById(id);};
-  var OPS={FR:{flag:"🇫🇷",name:"França",sub:"Operação em euro",sym:"€"},US:{flag:"🇺🇸",name:"EUA",sub:"Operação em dólar",sym:"$"}};
-  var OPORDER=["FR","US"];
+  var OPS={FR:{flag:"🇫🇷",name:"França",sub:"Operação em euro",sym:"€"},US:{flag:"🇺🇸",name:"EUA",sub:"Operação em dólar",sym:"$"},BR:{flag:"🇧🇷",name:"Brasil",sub:"Operação em real",sym:"R$"}};
+  var OPORDER=["FR","US","BR"];
   var state={period:"today",demo:false,user:null,op:(function(){try{return localStorage.getItem("scaleon_op")||"FR";}catch(e){return "FR";}})()};
   if(!OPS[state.op])state.op="FR";
   var CURSYM=OPS[state.op].sym;
