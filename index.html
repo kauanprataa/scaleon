@@ -313,7 +313,7 @@
       <button class="period" data-p="month">Este mês</button>
     </div>
     <div class="daterange"><b>DE</b><span class="date-pill" id="d-from">—</span><b>ATÉ</b><span class="date-pill" id="d-to">—</span></div>
-    <div class="curr"><span class="on">€</span><span>R$</span></div>
+    <div class="curr"><span class="on" id="cur-badge">€</span></div>
     <div class="fb-right">
       <div class="upd"><span class="dot"></span> Atualizado <span id="upd-time">agora</span></div>
       <button class="btn-sm btn-notif" id="btn-notif">🔔 Ativar notificações</button>
@@ -447,7 +447,7 @@
       <div class="panel" id="tiktok">
         <div class="panel-head"><div><div class="eyebrow">TikTok Ads</div><h3>Recargas recentes</h3></div><div class="hint" id="spend-total">Gasto: €0,00</div></div>
         <div class="spend-form" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:4px 0 14px">
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--faint)">Valor (€)
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--faint)">Valor (<span id="spend-cur">€</span>)
             <input id="sp-amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00" style="width:110px;padding:8px 10px;background:var(--panel-2,#15151d);border:1px solid var(--line);border-radius:8px;color:var(--fg);font-size:14px">
           </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--faint)">Dia
@@ -559,7 +559,7 @@
   var OPORDER=["FR","US","BR"];
   var state={period:"today",demo:false,user:null,op:(function(){try{return localStorage.getItem("scaleon_op")||"FR";}catch(e){return "FR";}})()};
   if(!OPS[state.op])state.op="FR";
-  var CURSYM=OPS[state.op].sym;
+  var CURSYM=OPS[state.op].sym; window.__cursym=CURSYM;
 
   function eur(n){return CURSYM+(Number(n)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
   function pct(n){return (Number(n)||0).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";}
@@ -611,13 +611,15 @@
 
   // ---- Operação / país (troca pelo menu lateral; no topo só mostra) ----
   function applyOp(code,reload){
-    if(!OPS[code])code="FR"; state.op=code; CURSYM=OPS[code].sym; window.__op=code;
+    if(!OPS[code])code="FR"; state.op=code; CURSYM=OPS[code].sym; window.__op=code; window.__cursym=CURSYM;
     try{localStorage.setItem("scaleon_op",code);}catch(e){}
     var o=OPS[code];
     if($("op-flag"))$("op-flag").textContent=o.flag;
     if($("op-name"))$("op-name").textContent=o.name;
     if($("op-sub"))$("op-sub").textContent=o.sub;
     var fc=$("foot-cur"); if(fc)fc.textContent=o.sym;
+    var cb=$("cur-badge"); if(cb)cb.textContent=o.sym;
+    var sc=$("spend-cur"); if(sc)sc.textContent=o.sym;
     var ld=$("lop-desc"); if(ld)ld.textContent=(code==="BR")?"Receita líquida menos anúncios, reembolsos, chargebacks e despesas.":"Receita líquida menos anúncios, reembolsos, chargebacks (com a multa de €27,00 cada) e despesas.";
     buildOpList();
     if(reload)load();
@@ -796,7 +798,7 @@
   function drawAccum(cv,r,g){var p=prep(cv,240),ctx=p.ctx,W=p.W,H=p.H,C=TC();var padL=54,padR=14,padT=12,padB=26,n=r.length||1;
     var maxV=Math.max(1,Math.max.apply(null,r.concat(g)));var nice=Math.ceil(maxV/100)*100||100;var pw=W-padL-padR,ph=H-padT-padB;
     ctx.font="11px 'JetBrains Mono',monospace";ctx.textBaseline="middle";
-    for(var gg=0;gg<=4;gg++){var y=padT+ph-(ph*gg/4);ctx.strokeStyle=C.line;ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle=C.muted;ctx.textAlign="right";ctx.fillText("€"+Math.round(nice*gg/4),padL-8,y);}
+    for(var gg=0;gg<=4;gg++){var y=padT+ph-(ph*gg/4);ctx.strokeStyle=C.line;ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle=C.muted;ctx.textAlign="right";ctx.fillText(CURSYM+Math.round(nice*gg/4),padL-8,y);}
     function ln(arr,color,fill){ctx.beginPath();for(var i=0;i<n;i++){var x=padL+(pw*(n===1?0:i/(n-1)));var y=padT+ph-ph*(arr[i]/nice);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
       if(fill){ctx.lineTo(padL+pw,padT+ph);ctx.lineTo(padL,padT+ph);ctx.closePath();ctx.fillStyle=color;ctx.globalAlpha=.12;ctx.fill();ctx.globalAlpha=1;ctx.beginPath();for(var j=0;j<n;j++){var x2=padL+(pw*(n===1?0:j/(n-1)));var y2=padT+ph-ph*(arr[j]/nice);if(j===0)ctx.moveTo(x2,y2);else ctx.lineTo(x2,y2);}}
       ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();ctx.lineWidth=1;}
@@ -806,14 +808,14 @@
   function drawBars(cv,labels,rev,spd){var p=prep(cv,210),ctx=p.ctx,W=p.W,H=p.H,C=TC();var padL=52,padR=12,padT=12,padB=26,n=labels.length;
     var maxV=Math.max(1,Math.max.apply(null,rev.concat(spd)));var nice=Math.ceil(maxV/100)*100||100;var pw=W-padL-padR,ph=H-padT-padB;
     ctx.font="11px 'JetBrains Mono',monospace";ctx.textBaseline="middle";
-    for(var g=0;g<=4;g++){var y=padT+ph-(ph*g/4);ctx.strokeStyle=C.line;ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle=C.muted;ctx.textAlign="right";ctx.fillText("€"+Math.round(nice*g/4),padL-8,y);}
+    for(var g=0;g<=4;g++){var y=padT+ph-(ph*g/4);ctx.strokeStyle=C.line;ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle=C.muted;ctx.textAlign="right";ctx.fillText(CURSYM+Math.round(nice*g/4),padL-8,y);}
     var slot=pw/n,bw=Math.min(26,slot*0.32);
     for(var i=0;i<n;i++){var cx=padL+slot*i+slot/2;var rH=ph*(rev[i]/nice),sH=ph*(spd[i]/nice);ctx.fillStyle=C.acc;ctx.fillRect(cx-bw-2,padT+ph-rH,bw,rH);ctx.fillStyle=C.spd;ctx.fillRect(cx+2,padT+ph-sH,bw,sH);ctx.fillStyle=C.muted;ctx.textAlign="center";ctx.textBaseline="top";ctx.fillText(labels[i],cx,H-padB+8);ctx.textBaseline="middle";}}
 
   function drawHour(cv,hourly){var p=prep(cv,200),ctx=p.ctx,W=p.W,H=p.H,C=TC();var padL=44,padR=10,padT=10,padB=22,n=24;
     var maxV=Math.max(1,Math.max.apply(null,hourly));var nice=Math.ceil(maxV/50)*50||50;var pw=W-padL-padR,ph=H-padT-padB;
     ctx.font="10px 'JetBrains Mono',monospace";ctx.textBaseline="middle";
-    for(var g=0;g<=3;g++){var y=padT+ph-(ph*g/3);ctx.strokeStyle=C.line;ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle=C.muted;ctx.textAlign="right";ctx.fillText("€"+Math.round(nice*g/3),padL-6,y);}
+    for(var g=0;g<=3;g++){var y=padT+ph-(ph*g/3);ctx.strokeStyle=C.line;ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle=C.muted;ctx.textAlign="right";ctx.fillText(CURSYM+Math.round(nice*g/3),padL-6,y);}
     var slot=pw/n,bw=Math.max(3,slot*0.6);
     for(var i=0;i<n;i++){var cx=padL+slot*i+slot/2;var hH=ph*(hourly[i]/nice);ctx.fillStyle=C.acc2;ctx.fillRect(cx-bw/2,padT+ph-hH,bw,hH);if(i%3===0){ctx.fillStyle=C.muted;ctx.textAlign="center";ctx.textBaseline="top";ctx.fillText((i<10?"0":"")+i+"h",cx,H-padB+6);ctx.textBaseline="middle";}}}
 
@@ -821,7 +823,7 @@
     var p=prep(cv,150),ctx=p.ctx,W=p.W,H=p.H,C=TC();var padL=44,padR=10,padT=10,padB=22,n=series.rev.length;
     var maxV=Math.max(1,Math.max.apply(null,series.rev));var nice=Math.ceil(maxV/100)*100||100;var pw=W-padL-padR,ph=H-padT-padB;
     ctx.font="10px 'JetBrains Mono',monospace";ctx.textBaseline="middle";
-    for(var g=0;g<=2;g++){var y=padT+ph-(ph*g/2);ctx.strokeStyle=C.line;ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle=C.muted;ctx.textAlign="right";ctx.fillText("€"+Math.round(nice*g/2),padL-6,y);}
+    for(var g=0;g<=2;g++){var y=padT+ph-(ph*g/2);ctx.strokeStyle=C.line;ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle=C.muted;ctx.textAlign="right";ctx.fillText(CURSYM+Math.round(nice*g/2),padL-6,y);}
     var slot=pw/n,bw=Math.min(30,slot*0.5);
     for(var i=0;i<n;i++){var cx=padL+slot*i+slot/2;var hH=ph*(series.rev[i]/nice);ctx.fillStyle=C.acc;ctx.fillRect(cx-bw/2,padT+ph-hH,bw,hH);ctx.fillStyle=C.muted;ctx.textAlign="center";ctx.textBaseline="top";ctx.fillText(series.labels[i],cx,H-padB+6);ctx.textBaseline="middle";}}
 
@@ -885,7 +887,7 @@
   var SB="https://uniyfdmhqzjovkkrjtjx.supabase.co",KEY="sb_publishable_Wsdd2Z8-8mh4gIja-lks2g_Q6stwtyf";
   var sb; try{sb=window.supabase.createClient(SB,KEY);}catch(e){return;}
   var $=function(id){return document.getElementById(id);};
-  function eur(n){return "€"+(Number(n)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function eur(n){return (window.__cursym||"€")+(Number(n)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
   function setMsg(t,c){var m=$("px-msg");if(!m)return;m.textContent=t||"";m.className="msg "+(c||"");}
   async function loadPixels(){
@@ -1160,7 +1162,7 @@
   var FN_KEY="scaleon_vp_a93kd71";
   var sb; try{sb=window.supabase.createClient(SB,KEY);}catch(e){return;}
   var $=function(id){return document.getElementById(id);};
-  function eur(n){return "€"+(Number(n)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function eur(n){return (window.__cursym||"€")+(Number(n)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
   function msg(id,t,c){var m=$(id);if(!m)return;m.textContent=t||"";m.className="msg "+(c||"");}
   function todayKey(){var d=new Date();return "tiktok_auto_"+d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");}
