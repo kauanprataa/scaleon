@@ -651,15 +651,17 @@
       sb.from("expenses").select("*").gte("occurred_at",s).lte("occurred_at",e),
       sb.from("funnel_stages").select("*").order("position",{ascending:true}),
       sb.from("pixel_sends").select("*",{count:"exact",head:true}).eq("status","sent").gte("created_at",s).lte("created_at",e),
-      sb.from("sales").select("gross_amount,country").eq("status","pending").gte("sold_at",s).lte("sold_at",e)
+      sb.from("sales").select("*").eq("status","pending").gte("sold_at",s).lte("sold_at",e).order("sold_at",{ascending:false})
     ]).then(function(res){
       var oc=function(arr){return (arr||[]).filter(function(r){return (r.country||"FR")===state.op;});};
-      render(buildData(oc(res[0].data),oc(res[1].data),oc(res[2].data),oc(res[3].data),oc(res[4].data),(res[5].data||[])));
+      render(buildData(oc(res[0].data),oc(res[1].data),oc(res[2].data),oc(res[3].data),oc(res[4].data),((res[5].data||[]).filter(function(st){return (st.country||"FR")===state.op;}))));
       var pxSent=(res[6]&&res[6].count)||0;
       var mp=$("m-pix"); if(mp){mp.textContent=pxSent; var sub=mp.nextElementSibling; if(sub)sub.textContent=pxSent>0?"eventos enviados ao TikTok":"nenhum evento enviado ainda";}
       var pend=oc((res[7]&&res[7].data)||[]);
       var mpd=$("m-pend");
       if(mpd){ if(state.op==="BR"){ mpd.style.display=""; var pv=$("pend-v"),psub=$("pend-sub"); var psum=pend.reduce(function(a,r){return a+(Number(r.gross_amount)||0);},0); if(pv)pv.textContent=pend.length; if(psub)psub.textContent=eur(psum)+" aguardando pagamento"; } else { mpd.style.display="none"; } }
+      // Brasil: lista as vendas pendentes junto das vendas recentes
+      if(state.op==="BR"){ var sbl=$("sales-body"); if(sbl&&pend.length){ var ph=pend.map(function(s){return "<tr style='opacity:.72'><td class='mono'>"+timeHM(s.sold_at)+"</td><td>"+esc(s.product||"—")+" <span class='badge neu' style='font-size:9px;padding:2px 6px'>pendente</span></td><td style='color:var(--muted)'>"+esc(s.source||"—")+"</td><td class='right mono'>"+eur(s.gross_amount)+"</td><td class='right mono' style='color:var(--faint)'>—</td></tr>";}).join(""); var hasEmpty=sbl.querySelector(".empty"); sbl.innerHTML=hasEmpty?ph:(ph+sbl.innerHTML); } }
     }).catch(function(){render(emptyData());});
   }
   function sum(a,k){return a.reduce(function(x,o){return x+(Number(o[k])||0);},0);}
@@ -1039,12 +1041,14 @@
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
   var editBtn=$("fn-edit"), box=$("fn-editor");
   async function renderEditor(){
-    var r=await sb.from("funnel_stages").select("*").order("position",{ascending:true});
+    var op=window.__op||"FR";
+    var r=await sb.from("funnel_stages").select("*").eq("country",op).order("position",{ascending:true});
     var st=(r.data||[]);
-    var ps=await sb.from("sales").select("product").not("product","is",null).limit(300);
+    var ps=await sb.from("sales").select("product").eq("country",op).not("product","is",null).limit(300);
     var set={};(ps.data||[]).forEach(function(x){if(x.product)set[x.product]=1;});
     var opts=Object.keys(set).map(function(n){return '<option value="'+esc(n)+'">';}).join("");
-    box.innerHTML='<div class="sub-hint" style="margin-bottom:8px">Diga qual produto é cada etapa. Vazio = etapa sem produto.</div><datalist id="fn-prod-list">'+opts+'</datalist>'+st.map(function(s){
+    var FLAGS={FR:"🇫🇷 França",US:"🇺🇸 EUA",BR:"🇧🇷 Brasil"};
+    box.innerHTML='<div class="sub-hint" style="margin-bottom:8px">Editando o funil de <b>'+(FLAGS[op]||op)+'</b> — diga qual produto é cada etapa. Vazio = etapa sem produto.</div><datalist id="fn-prod-list">'+opts+'</datalist>'+st.map(function(s){
       return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="width:110px;font-size:12px;font-weight:700;color:'+(s.color||"var(--fg)")+'">'+esc(s.label)+'</span><input class="fn-inp" data-id="'+s.id+'" list="fn-prod-list" value="'+esc(s.product||"")+'" placeholder="produto desta etapa" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:var(--fg);font-size:13px"></div>';
     }).join("")+'<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><button class="btn-primary" id="fn-save" style="padding:10px 16px">Salvar funil</button><span class="msg" id="fn-msg"></span></div>';
   }
