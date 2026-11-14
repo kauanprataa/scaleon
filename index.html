@@ -263,6 +263,18 @@
     <div class="msg" id="login-msg"></div>
     <button class="btn-primary" type="submit" id="btn-login">Entrar</button>
     <button class="btn-ghost" type="button" id="btn-signup">Criar conta</button>
+    <div style="display:flex;justify-content:space-between;gap:10px;margin-top:-6px">
+      <button type="button" id="btn-change" style="background:none;border:none;color:var(--accent);font-size:12.5px;cursor:pointer;padding:0;text-decoration:underline">Alterar senha</button>
+      <button type="button" id="btn-forgot" style="background:none;border:none;color:var(--faint);font-size:12.5px;cursor:pointer;padding:0;text-decoration:underline">Esqueci a senha</button>
+    </div>
+    <div id="chpw" hidden style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px;margin-top:2px">
+      <div style="font-size:13px;font-weight:700;color:var(--fg)" id="chpw-ttl">Alterar senha</div>
+      <div class="field"><label for="cp-cur">Senha atual</label><input id="cp-cur" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <div class="field"><label for="cp-new">Nova senha</label><input id="cp-new" type="password" autocomplete="new-password" placeholder="mínimo 6 caracteres"></div>
+      <div class="field"><label for="cp-new2">Repita a nova senha</label><input id="cp-new2" type="password" autocomplete="new-password" placeholder="••••••••"></div>
+      <div class="msg" id="cp-msg"></div>
+      <button class="btn-primary" type="button" id="cp-save">Salvar nova senha</button>
+    </div>
     <div class="login-foot">Rastreamento de vendas, dados precisos e mais resultado para suas campanhas.</div>
   </form>
 </div>
@@ -595,7 +607,15 @@
   function traduz(m){if(/invalid login/i.test(m))return "E-mail ou senha incorretos.";if(/already registered/i.test(m))return "Esse e-mail já tem conta. Use Entrar.";if(/not confirmed/i.test(m))return "Conta ainda não confirmada.";if(/at least 6/i.test(m))return "A senha precisa de ao menos 6 caracteres.";return m;}
   function enterApp(u){state.user=u;$("login").style.display="none";$("app").classList.add("on");load();}
   $("btn-logout").addEventListener("click",function(){if(sb)sb.auth.signOut();state.user=null;$("app").classList.remove("on");$("login").style.display="flex";setMsg("","");$("password").value="";});
-  if(sb){sb.auth.getSession().then(function(res){if(res.data&&res.data.session)enterApp(res.data.session.user);});}
+  // ---- Alterar / redefinir senha ----
+  var recovering=false;
+  function cpMsg(t,c){var m=$("cp-msg");if(m){m.textContent=t||"";m.className="msg "+(c||"");}}
+  function openChange(recovery){recovering=!!recovery;var p=$("chpw");if(p)p.hidden=false;var cw=$("cp-cur").closest(".field");if(cw)cw.style.display=recovery?"none":"";var hd=$("chpw-ttl");if(hd)hd.textContent=recovery?"Crie sua nova senha":"Alterar senha";cpMsg(recovery?"Digite a nova senha que você quer usar.":"","");}
+  var bc=$("btn-change");if(bc)bc.addEventListener("click",function(){openChange(false);var n=$("cp-new");if(n)n.focus();});
+  var bf=$("btn-forgot");if(bf)bf.addEventListener("click",async function(){var email=$("email").value.trim();if(!email){setMsg("Digite seu e-mail acima primeiro.","err");return;}setMsg("Enviando link de redefinição…","");try{var r=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin});if(r.error){setMsg(traduz(r.error.message),"err");return;}setMsg("Se este e-mail tiver conta, enviamos um link pra criar uma nova senha. Veja a caixa de entrada e o spam.","ok");}catch(e){setMsg("Não consegui enviar agora.","err");}});
+  var cs=$("cp-save");if(cs)cs.addEventListener("click",async function(){var np=$("cp-new").value,np2=$("cp-new2").value;if((np||"").length<6){cpMsg("A nova senha precisa de ao menos 6 caracteres.","err");return;}if(np!==np2){cpMsg("As senhas não conferem.","err");return;}var b=this;b.disabled=true;var old=b.textContent;b.textContent="Salvando…";try{if(!recovering){var email=$("email").value.trim(),cur=$("cp-cur").value;if(!email||!cur){cpMsg("Preencha e-mail e senha atual.","err");b.disabled=false;b.textContent=old;return;}var si=await sb.auth.signInWithPassword({email:email,password:cur});if(si.error){cpMsg("E-mail ou senha atual incorretos.","err");b.disabled=false;b.textContent=old;return;}}var up=await sb.auth.updateUser({password:np});if(up.error){cpMsg(traduz(up.error.message),"err");b.disabled=false;b.textContent=old;return;}cpMsg("Senha alterada! Entrando…","ok");try{history.replaceState(null,"",location.pathname);}catch(e){}var u=up.data&&up.data.user;setTimeout(function(){if(u)enterApp(u);},900);}catch(e){cpMsg("Não consegui alterar agora. Tente de novo.","err");b.disabled=false;b.textContent=old;}});
+  if(sb){sb.auth.onAuthStateChange(function(ev){if(ev==="PASSWORD_RECOVERY"){openChange(true);}});}
+  if(sb && location.hash.indexOf("type=recovery")<0){sb.auth.getSession().then(function(res){if(res.data&&res.data.session)enterApp(res.data.session.user);});}
 
   // drawer
   $("burger").addEventListener("click",function(){$("drawer").classList.add("on");$("drawer-ov").classList.add("on");});
